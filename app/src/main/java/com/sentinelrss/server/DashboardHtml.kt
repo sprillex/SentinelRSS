@@ -20,10 +20,12 @@ object DashboardHtml {
             <body>
                 <div class="container">
                     <h1>SentinelRSS Dashboard</h1>
+                    <button onclick="refreshFeeds()" style="margin-bottom: 20px;">Refresh Feeds</button>
                     <div id="articles">Loading...</div>
                 </div>
                 <script>
-                    fetch('/api/articles')
+                    function loadArticles() {
+                         fetch('/api/articles')
                         .then(response => {
                             if (!response.ok) {
                                 return response.text().then(text => { throw new Error(text || response.statusText) });
@@ -52,12 +54,27 @@ object DashboardHtml {
                         .catch(err => {
                             document.getElementById('articles').innerHTML = '<p style="color:red">Error loading articles: ' + err.message + '</p>';
                         });
+                    }
+
+                    loadArticles();
 
                     function likeArticle(id) {
                         fetch(`/api/articles/${'$'}{id}/like`, { method: 'POST' })
                             .then(response => {
                                 if (response.ok) alert('Article liked! Engine will learn.');
                                 else alert('Failed to like.');
+                            });
+                    }
+
+                    function refreshFeeds() {
+                        fetch('/api/refresh', { method: 'POST' })
+                            .then(response => {
+                                if (response.ok) {
+                                    alert('Refresh started. Please wait a moment.');
+                                    setTimeout(loadArticles, 3000); // Reload after 3s
+                                } else {
+                                    alert('Failed to trigger refresh');
+                                }
                             });
                     }
                 </script>

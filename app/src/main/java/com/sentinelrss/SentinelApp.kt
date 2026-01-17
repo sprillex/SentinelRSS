@@ -3,9 +3,15 @@ package com.sentinelrss
 import android.app.Application
 import android.util.Log
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import com.sentinelrss.data.local.AppDatabase
 import com.sentinelrss.domain.FeedUpdateWorker
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
 class SentinelApp : Application() {
@@ -20,19 +26,40 @@ class SentinelApp : Application() {
             Log.e("SentinelApp", "Failed to load sqlcipher", e)
         }
 
+        ensureDatabaseSeeded()
         scheduleFeedUpdates()
     }
 
+    private fun ensureDatabaseSeeded() {
+        val db = AppDatabase.getDatabase(this)
+        CoroutineScope(Dispatchers.IO).launch {
+            if (db.feedDao().getAllFeedsSync().isEmpty()) {
+                Log.d("SentinelApp", "Seeding database...")
+                AppDatabase.populateDatabase(db.feedDao())
+            }
+        }
+    }
+
     private fun scheduleFeedUpdates() {
-        // Schedule periodic feed updates every 15 minutes (minimum allowed by Android)
-        val workRequest = PeriodicWorkRequestBuilder<FeedUpdateWorker>(
+        val workManager = WorkManager.getInstance(this)
+
+        // 1. Trigger immediate update
+        val oneTimeRequest = OneTimeWorkRequestBuilder<FeedUpdateWorker>().build()
+        workManager.enqueueUniqueWork(
+            "FeedUpdateInitial",
+            ExistingWorkPolicy.KEEP,
+            oneTimeRequest
+        )
+
+        // 2. Schedule periodic feed updates every 15 minutes
+        val periodicRequest = PeriodicWorkRequestBuilder<FeedUpdateWorker>(
             15, TimeUnit.MINUTES
         ).build()
 
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+        workManager.enqueueUniquePeriodicWork(
             "FeedUpdate",
             ExistingPeriodicWorkPolicy.UPDATE,
-            workRequest
+            periodicRequest
         )
     }
 }

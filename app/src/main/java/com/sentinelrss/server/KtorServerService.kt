@@ -9,9 +9,12 @@ import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.sentinelrss.data.local.AppDatabase
 import com.sentinelrss.data.local.UserInterest
 import com.sentinelrss.domain.ContentScorer
+import com.sentinelrss.domain.FeedUpdateWorker
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
@@ -59,6 +62,12 @@ class KtorServerService : Service() {
                                 e.printStackTrace()
                                 call.respondText("Error fetching articles", status = HttpStatusCode.InternalServerError)
                             }
+                        }
+
+                        post("/api/refresh") {
+                            val request = OneTimeWorkRequestBuilder<FeedUpdateWorker>().build()
+                            WorkManager.getInstance(applicationContext).enqueue(request)
+                            call.respondText("Refresh triggered", status = HttpStatusCode.OK)
                         }
 
                         post("/api/articles/{id}/like") {
