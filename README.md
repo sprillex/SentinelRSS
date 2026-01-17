@@ -47,11 +47,6 @@ security_guidelines:
   - "No external cloud API calls for analysis."
   - "All interest data remains on-device only."
   - "Local server accessible only via authenticated LAN subnet."
-  -         lon: -83.6859028
-      - name: "Ballerat"
-        lat: 41.8648291
-        lon: -83.6859028
-
   initial_feeds:
     - { category: "Hackaday", limit: 10, url: "https://hackaday.com/blog/feed/" }
     - { category: "Troy Hunt", limit: 10, url: "https://feeds.feedburner.com/TroyHunt" }
