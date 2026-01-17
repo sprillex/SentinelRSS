@@ -4,9 +4,14 @@ import android.content.Context
 import com.google.mediapipe.tasks.core.BaseOptions
 import com.google.mediapipe.tasks.text.textembedder.TextEmbedder
 import com.google.mediapipe.tasks.text.textembedder.TextEmbedder.TextEmbedderOptions
+import com.sentinelrss.data.local.AppDatabase
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlin.math.sqrt
 
 class ContentScorer(context: Context) {
     private var textEmbedder: TextEmbedder? = null
+    private val database = AppDatabase.getDatabase(context)
 
     init {
         try {
@@ -18,24 +23,75 @@ class ContentScorer(context: Context) {
                 .build()
             textEmbedder = TextEmbedder.createFromOptions(context, options)
         } catch (e: Exception) {
-            // Model not found or init failed, falling back to dummy scorer
+            // Model not found or init failed
         }
     }
 
-    fun score(title: String, description: String): Float {
+    suspend fun score(title: String, description: String): Float {
         val text = "$title $description"
 
-        // Mock logic if embedder is missing
-        if (textEmbedder == null) return Math.random().toFloat()
+        // 1. Generate Embedding for the article
+        val articleEmbedding = generateEmbedding(text) ?: return fallbackScore(text)
 
-        try {
+        // 2. Fetch User Interests
+        val userInterests = withContext(Dispatchers.IO) {
+            database.userInterestDao().getAllInterests()
+        }
+
+        if (userInterests.isEmpty()) {
+            return 0.5f // Neutral score if no history
+        }
+
+        // 3. Calculate Similarity (Max or Average Cosine Similarity)
+        var maxSimilarity = 0f
+        for (interest in userInterests) {
+            val interestVector = parseEmbedding(interest.vectorEmbedding)
+            val similarity = cosineSimilarity(articleEmbedding, interestVector)
+            if (similarity > maxSimilarity) {
+                maxSimilarity = similarity
+            }
+        }
+
+        return maxSimilarity
+    }
+
+    fun generateEmbedding(text: String): FloatArray? {
+        if (textEmbedder == null) return null
+        return try {
             val result = textEmbedder?.embed(text)
-            // In a real implementation, we would compare this embedding (Cosine Similarity)
-            // against a user interest profile stored in DB.
-            // For now, return a dummy score.
-            return Math.random().toFloat()
+            result?.embeddingResult()?.embeddings()?.firstOrNull()?.floatEmbedding()
         } catch (e: Exception) {
-            return 0f
+            null
+        }
+    }
+
+    private fun fallbackScore(text: String): Float {
+        // Simple keyword matching if model fails
+        val keywords = listOf("Android", "Privacy", "Security", "Kotlin", "Hack")
+        var hits = 0
+        for (keyword in keywords) {
+            if (text.contains(keyword, ignoreCase = true)) hits++
+        }
+        return if (hits > 0) 0.8f else 0.2f
+    }
+
+    private fun parseEmbedding(embeddingStr: String): FloatArray {
+        return embeddingStr.split(",").map { it.toFloat() }.toFloatArray()
+    }
+
+    private fun cosineSimilarity(vecA: FloatArray, vecB: FloatArray): Float {
+        var dotProduct = 0.0f
+        var normA = 0.0f
+        var normB = 0.0f
+        for (i in vecA.indices) {
+            dotProduct += vecA[i] * vecB[i]
+            normA += vecA[i] * vecA[i]
+            normB += vecB[i] * vecB[i]
+        }
+        return if (normA > 0 && normB > 0) {
+            dotProduct / (sqrt(normA) * sqrt(normB))
+        } else {
+            0.0f
         }
     }
 }

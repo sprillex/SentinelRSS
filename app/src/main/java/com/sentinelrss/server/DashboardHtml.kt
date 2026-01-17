@@ -35,10 +35,19 @@ object DashboardHtml {
                                     <h2><a href="${'$'}{article.link}" target="_blank">${'$'}{article.title}</a></h2>
                                     <p>${'$'}{article.description}</p>
                                     <small>Score: ${'$'}{article.score}</small>
+                                    <button onclick="likeArticle(${'$'}{article.id})">Like</button>
                                 `;
                                 container.appendChild(div);
                             });
                         });
+
+                    function likeArticle(id) {
+                        fetch(`/api/articles/${'$'}{id}/like`, { method: 'POST' })
+                            .then(response => {
+                                if (response.ok) alert('Article liked! Engine will learn.');
+                                else alert('Failed to like.');
+                            });
+                    }
                 </script>
             </body>
             </html>
