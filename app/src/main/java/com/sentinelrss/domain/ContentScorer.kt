@@ -5,25 +5,34 @@ import com.google.mediapipe.tasks.core.BaseOptions
 import com.google.mediapipe.tasks.text.textembedder.TextEmbedder
 import com.google.mediapipe.tasks.text.textembedder.TextEmbedder.TextEmbedderOptions
 import com.sentinelrss.data.local.AppDatabase
+import com.sentinelrss.utils.ModelUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.sqrt
 
-class ContentScorer(context: Context) {
+class ContentScorer(private val context: Context) {
     private var textEmbedder: TextEmbedder? = null
     private val database = AppDatabase.getDatabase(context)
 
     init {
+        loadModel()
+    }
+
+    fun loadModel() {
         try {
-            val baseOptions = BaseOptions.builder()
-                .setModelAssetPath("universal_sentence_encoder.tflite")
-                .build()
-            val options = TextEmbedderOptions.builder()
-                .setBaseOptions(baseOptions)
-                .build()
-            textEmbedder = TextEmbedder.createFromOptions(context, options)
+            val modelPath = ModelUtils.getModelPath(context)
+            if (modelPath != null) {
+                val baseOptions = BaseOptions.builder()
+                    .setModelAssetPath(modelPath)
+                    .build()
+                val options = TextEmbedderOptions.builder()
+                    .setBaseOptions(baseOptions)
+                    .build()
+                textEmbedder = TextEmbedder.createFromOptions(context, options)
+            }
         } catch (e: Exception) {
             // Model not found or init failed
+            e.printStackTrace()
         }
     }
 

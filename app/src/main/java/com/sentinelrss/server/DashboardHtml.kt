@@ -33,7 +33,7 @@ object DashboardHtml {
                                 if (data.ml_model_loaded) {
                                     el.innerHTML = '<span style="color: #4caf50;">● ML Model Active</span>';
                                 } else {
-                                    el.innerHTML = '<span style="color: #ff9800;">● ML Model Missing (Using Fallback Mode)</span>';
+                                    el.innerHTML = '<span style="color: #ff9800;">● ML Model Missing (Using Fallback Mode)</span> <button onclick="downloadModel()" style="margin-left:10px; font-size: 0.8em;">Download Model (3MB)</button>';
                                 }
                             })
                             .catch(err => {
@@ -41,6 +41,26 @@ object DashboardHtml {
                             });
                     }
                     checkStatus();
+
+                    function downloadModel() {
+                        if(!confirm('Download 3MB ML Model? This requires internet access.')) return;
+
+                        document.getElementById('status').innerHTML = 'Downloading model... please wait...';
+                        fetch('/api/model/download', { method: 'POST' })
+                            .then(response => {
+                                if (response.ok) {
+                                    alert('Model downloaded and loaded!');
+                                    checkStatus();
+                                } else {
+                                    alert('Download failed.');
+                                    checkStatus();
+                                }
+                            })
+                            .catch(err => {
+                                alert('Error: ' + err.message);
+                                checkStatus();
+                            });
+                    }
 
                     function loadArticles() {
                          fetch('/api/articles')

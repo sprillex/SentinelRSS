@@ -15,6 +15,11 @@ import com.sentinelrss.data.local.AppDatabase
 import com.sentinelrss.data.local.UserInterest
 import com.sentinelrss.domain.ContentScorer
 import com.sentinelrss.domain.FeedUpdateWorker
+import com.sentinelrss.utils.ModelUtils
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.request.get
+import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
@@ -22,6 +27,9 @@ import io.ktor.server.application.call
 import io.ktor.server.application.install
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
+import io.ktor.util.cio.writeChannel
+import io.ktor.utils.io.copyTo
+import java.io.File
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
@@ -67,6 +75,28 @@ class KtorServerService : Service() {
                         get("/api/status") {
                             val isModelLoaded = scorer.isModelLoaded()
                             call.respond(mapOf("ml_model_loaded" to isModelLoaded))
+                        }
+
+                        post("/api/model/download") {
+                            try {
+                                val client = HttpClient(io.ktor.client.engine.cio.CIO)
+                                val response = client.get(ModelUtils.MODEL_URL)
+
+                                if (response.status == HttpStatusCode.OK) {
+                                    val file = File(applicationContext.filesDir, ModelUtils.MODEL_FILENAME)
+                                    response.bodyAsChannel().copyTo(file.writeChannel())
+
+                                    // Reload scorer
+                                    scorer.loadModel()
+
+                                    call.respondText("Model downloaded successfully", status = HttpStatusCode.OK)
+                                } else {
+                                    call.respondText("Failed to download model", status = HttpStatusCode.BadGateway)
+                                }
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                                call.respondText("Error downloading model: ${e.message}", status = HttpStatusCode.InternalServerError)
+                            }
                         }
 
                         post("/api/refresh") {
