@@ -10,7 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import net.sqlcipher.database.SupportFactory
 
-@Database(entities = [Feed::class, Article::class, UserInterest::class], version = 2)
+@Database(entities = [Feed::class, Article::class, UserInterest::class], version = 3)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun feedDao(): FeedDao
     abstract fun articleDao(): ArticleDao

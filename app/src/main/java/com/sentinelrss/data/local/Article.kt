@@ -1,11 +1,12 @@
 package com.sentinelrss.data.local
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import kotlinx.serialization.Serializable
 
 @Serializable
-@Entity(tableName = "articles")
+@Entity(tableName = "articles", indices = [Index(value = ["link"], unique = true)])
 data class Article(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val feedId: Long,
