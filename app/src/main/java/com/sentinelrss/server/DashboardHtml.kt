@@ -20,10 +20,28 @@ object DashboardHtml {
             <body>
                 <div class="container">
                     <h1>SentinelRSS Dashboard</h1>
+                    <div id="status" style="margin-bottom: 10px; color: #888;">Checking ML Status...</div>
                     <button onclick="refreshFeeds()" style="margin-bottom: 20px;">Refresh Feeds</button>
                     <div id="articles">Loading...</div>
                 </div>
                 <script>
+                    function checkStatus() {
+                        fetch('/api/status')
+                            .then(res => res.json())
+                            .then(data => {
+                                const el = document.getElementById('status');
+                                if (data.ml_model_loaded) {
+                                    el.innerHTML = '<span style="color: #4caf50;">● ML Model Active</span>';
+                                } else {
+                                    el.innerHTML = '<span style="color: #ff9800;">● ML Model Missing (Using Fallback Mode)</span>';
+                                }
+                            })
+                            .catch(err => {
+                                document.getElementById('status').innerText = 'Status Unknown';
+                            });
+                    }
+                    checkStatus();
+
                     function loadArticles() {
                          fetch('/api/articles')
                         .then(response => {

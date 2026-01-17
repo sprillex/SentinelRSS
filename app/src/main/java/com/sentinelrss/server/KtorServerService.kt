@@ -64,6 +64,11 @@ class KtorServerService : Service() {
                             }
                         }
 
+                        get("/api/status") {
+                            val isModelLoaded = scorer.isModelLoaded()
+                            call.respond(mapOf("ml_model_loaded" to isModelLoaded))
+                        }
+
                         post("/api/refresh") {
                             val request = OneTimeWorkRequestBuilder<FeedUpdateWorker>().build()
                             WorkManager.getInstance(applicationContext).enqueue(request)

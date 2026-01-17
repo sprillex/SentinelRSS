@@ -27,6 +27,10 @@ class ContentScorer(context: Context) {
         }
     }
 
+    fun isModelLoaded(): Boolean {
+        return textEmbedder != null
+    }
+
     suspend fun score(title: String, description: String): Float {
         val text = "$title $description"
 
