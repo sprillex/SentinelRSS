@@ -24,9 +24,18 @@ object DashboardHtml {
                 </div>
                 <script>
                     fetch('/api/articles')
-                        .then(response => response.json())
+                        .then(response => {
+                            if (!response.ok) {
+                                return response.text().then(text => { throw new Error(text || response.statusText) });
+                            }
+                            return response.json();
+                        })
                         .then(data => {
                             const container = document.getElementById('articles');
+                            if (data.length === 0) {
+                                container.innerHTML = '<p>No articles found. Check backend logs.</p>';
+                                return;
+                            }
                             container.innerHTML = '';
                             data.forEach(article => {
                                 const div = document.createElement('div');
@@ -39,6 +48,9 @@ object DashboardHtml {
                                 `;
                                 container.appendChild(div);
                             });
+                        })
+                        .catch(err => {
+                            document.getElementById('articles').innerHTML = '<p style="color:red">Error loading articles: ' + err.message + '</p>';
                         });
 
                     function likeArticle(id) {

@@ -14,6 +14,12 @@ class SentinelApp : Application() {
         super.onCreate()
         Log.d("SentinelApp", "App started")
 
+        try {
+            System.loadLibrary("sqlcipher")
+        } catch (e: Exception) {
+            Log.e("SentinelApp", "Failed to load sqlcipher", e)
+        }
+
         scheduleFeedUpdates()
     }
 
