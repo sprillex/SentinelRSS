@@ -28,6 +28,7 @@ import io.ktor.server.application.install
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
 import io.ktor.util.cio.writeChannel
+import io.ktor.utils.io.close
 import io.ktor.utils.io.copyTo
 import java.io.File
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
@@ -78,13 +79,19 @@ class KtorServerService : Service() {
                         }
 
                         post("/api/model/download") {
+                            val client = HttpClient(io.ktor.client.engine.cio.CIO)
                             try {
-                                val client = HttpClient(io.ktor.client.engine.cio.CIO)
                                 val response = client.get(ModelUtils.MODEL_URL)
 
                                 if (response.status == HttpStatusCode.OK) {
                                     val file = File(applicationContext.filesDir, ModelUtils.MODEL_FILENAME)
-                                    response.bodyAsChannel().copyTo(file.writeChannel())
+                                    val channel = file.writeChannel()
+                                    try {
+                                        response.bodyAsChannel().copyTo(channel)
+                                        channel.flush()
+                                    } finally {
+                                        channel.close()
+                                    }
 
                                     // Reload scorer
                                     scorer.loadModel()
@@ -96,6 +103,8 @@ class KtorServerService : Service() {
                             } catch (e: Exception) {
                                 e.printStackTrace()
                                 call.respondText("Error downloading model: ${e.message}", status = HttpStatusCode.InternalServerError)
+                            } finally {
+                                client.close()
                             }
                         }
 
