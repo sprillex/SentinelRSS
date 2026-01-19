@@ -1,0 +1,36 @@
+name: Manual and Scheduled Cleanup
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Cleanup Artifacts
+        run: |
+          IDS=$(gh api repos/${{ github.repository }}/actions/artifacts --paginate --jq '.artifacts[].id')
+          if [ -n "$IDS" ]; then
+            echo "Found artifacts. Deleting..."
+            echo "$IDS" | xargs -I {} gh api -X DELETE repos/${{ github.repository }}/actions/artifacts/{}
+          else
+            echo "No artifacts found."
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Cleanup Caches
+        run: |
+          CACHE_COUNT=$(gh cache list -R ${{ github.repository }} --limit 1 | wc -l)
+          if [ "$CACHE_COUNT" -gt 0 ]; then
+            echo "Caches found. Purging..."
+            gh cache delete --all -R ${{ github.repository }}
+          else
+            echo "No caches found."
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
