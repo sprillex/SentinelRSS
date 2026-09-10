@@ -25,4 +25,7 @@ interface ArticleDao {
 
     @Query("UPDATE articles SET vectorEmbedding = :embedding, score = :score WHERE id = :id")
     suspend fun updateScore(id: Long, embedding: String, score: Float)
+
+    @Query("SELECT * FROM articles WHERE score >= :minScore AND score <= :maxScore AND (isCulled = 0 OR :includeCulled = 1) ORDER BY score DESC, pubDate DESC LIMIT :limit")
+    suspend fun getFeedArticles(minScore: Float, maxScore: Float, includeCulled: Boolean, limit: Int = 100): List<Article>
 }

@@ -38,6 +38,10 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -60,6 +64,58 @@ class KtorServerService : Service() {
                     routing {
                         get("/") {
                             call.respondText(DashboardHtml.getHtml(), ContentType.Text.Html)
+                        }
+
+                        get("/feed.xml") {
+                            val token = call.request.queryParameters["token"]
+                            if (token != "mysecrettoken") { // Very basic token auth as per discussion
+                                call.respondText("Unauthorized", status = HttpStatusCode.Unauthorized)
+                                return@get
+                            }
+
+                            val minRatingStr = call.request.queryParameters["minrating"]
+                            val maxRatingStr = call.request.queryParameters["maxrating"]
+                            val discStr = call.request.queryParameters["disc"]
+
+                            // Map 0-10 rating to 0.0-1.0 score
+                            val minScore = (minRatingStr?.toFloatOrNull() ?: 0f) / 10f
+                            val maxScore = (maxRatingStr?.toFloatOrNull() ?: 10f) / 10f
+                            val includeCulled = discStr?.lowercase() != "no"
+
+                            try {
+                                val articles = database.articleDao().getFeedArticles(minScore, maxScore, includeCulled)
+
+                                val rfc822Format = SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", Locale.US).apply {
+                                    timeZone = TimeZone.getTimeZone("UTC")
+                                }
+
+                                val rssBuilder = StringBuilder()
+                                rssBuilder.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
+                                rssBuilder.append("<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\">\n")
+                                rssBuilder.append("  <channel>\n")
+                                rssBuilder.append("    <title>SentinelRSS Curated Feed</title>\n")
+                                rssBuilder.append("    <link>http://localhost:8080/</link>\n")
+                                rssBuilder.append("    <description>Your personalized RSS feed powered by Machine Learning</description>\n")
+
+                                for (article in articles) {
+                                    rssBuilder.append("    <item>\n")
+                                    rssBuilder.append("      <title><![CDATA[${article.title}]]></title>\n")
+                                    rssBuilder.append("      <link><![CDATA[${article.link}]]></link>\n")
+                                    rssBuilder.append("      <guid isPermaLink=\"false\">${article.id}</guid>\n")
+                                    rssBuilder.append("      <description><![CDATA[${article.description}]]></description>\n")
+                                    val pubDateStr = rfc822Format.format(Date(article.pubDate))
+                                    rssBuilder.append("      <pubDate>$pubDateStr</pubDate>\n")
+                                    rssBuilder.append("    </item>\n")
+                                }
+
+                                rssBuilder.append("  </channel>\n")
+                                rssBuilder.append("</rss>\n")
+
+                                call.respondText(rssBuilder.toString(), ContentType.Application.Rss)
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                                call.respondText("Error generating feed", status = HttpStatusCode.InternalServerError)
+                            }
                         }
 
                         get("/api/articles") {
